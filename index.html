@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>مولّد موسيقى موجية — تحكم بالماوس</title>
+<style>
+  :root{--bg:#0b0e14;--fg:#e6e6e6;--acc:#00d0ff;--mut:#9aa4ad}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Arial}
+  header{padding:14px 16px;border-bottom:1px solid #1d2330;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;color:#cde9ff}
+  button,select,input[type=range]{accent-color:var(--acc)}
+  button{background:#16202e;color:var(--fg);border:1px solid #243244;border-radius:8px;padding:8px 12px;cursor:pointer}
+  button:active{transform:translateY(1px)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px}
+  .card{background:#0f1420;border:1px solid #1d2330;border-radius:12px;padding:12px}
+  .card h2{margin:0 0 8px 0;font-size:14px;color:#9bd3ff}
+  .row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .row label{min-width:110px;color:#c7d1dc;font-size:13px}
+  .row output{min-width:54px;text-align:end;color:#8fb3c9}
+  canvas{width:100%;height:180px;background:#0a0e16;border-radius:10px;border:1px solid #1a2231}
+  #pad{height:240px;cursor:crosshair;touch-action:none;background:linear-gradient(180deg,#0b1524,#0a0e16)}
+  .hint{color:var(--mut);font-size:12px;margin-top:6px;line-height:1.4}
+  .footer{padding:10px 14px;color:#7f91a4;border-top:1px solid #1d2330;font-size:12px}
+  @media (max-width:920px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header>
+    <h1>🎛️ موجات + فلتر + LFO + ADSR + Delay — تحكم حي بالماوس</h1>
+    <button id="startBtn">تشغيل الصوت</button>
+    <button id="stopAll">إيقاف الكل</button>
+    <select id="preset">
+      <option value="init">Preset: INIT</option>
+      <option value="pluck">Pluck</option>
+      <option value="bass">Bass</option>
+      <option value="pad">Pad</option>
+      <option value="lead">Lead</option>
+    </select>
+    <span class="hint">حرّك الماوس على الباد لتغيير <b>Pitch</b> (أفقي) و <b>Cutoff</b> (عمودي). عجلة الماوس = Detune. انقر واسحب للتشغيل. لمس مدعوم.</span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>🎚️ إعدادات الصوت</h2>
+      <div class="row">
+        <label>Wave 1</label>
+        <select id="wave1">
+          <option>sawtooth</option><option>square</option><option>triangle</option><option>sinusoid</option><option selected>square</option>
+        </select>
+        <label>Wave 2</label>
+        <select id="wave2">
+          <option selected>sawtooth</option><option>square</option><option>triangle</option><option>sinusoid</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Mix</label>
+        <input id="mix" type="range" min="0" max="1" step="0.01" value="0.5"/><output>0.50</output>
+      </div>
+      <div class="row">
+        <label>Master</label>
+        <input id="master" type="range" min="0" max="1" step="0.001" value="0.3"/><output>0.30</output>
+      </div>
+      <div class="row">
+        <label>Detune (¢)</label>
+        <input id="detune" type="range" min="-1200" max="1200" step="1" value="0"/><output>0</output>
+      </div>
+
+      <h2>🪗 ADSR</h2>
+      <div class="row"><label>Attack</label><input id="a" type="range" min="0" max="2" step="0.01" value="0.01"/><output>0.01</output></div>
+      <div class="row"><label>Decay</label><input id="d" type="range" min="0" max="2" step="0.01" value="0.15"/><output>0.15</output></div>
+      <div class="row"><label>Sustain</label><input id="s" type="range" min="0" max="1" step="0.01" value="0.6"/><output>0.60</output></div>
+      <div class="row"><label>Release</label><input id="r" type="range" min="0" max="3" step="0.01" value="0.2"/><output>0.20</output></div>
+
+      <h2>🧪 فلتر</h2>
+      <div class="row"><label>Type</label>
+        <select id="fType">
+          <option selected>lowpass</option><option>bandpass</option><option>highpass</option>
+        </select>
+      </div>
+      <div class="row"><label>Cutoff (Hz)</label><input id="cut" type="range" min="50" max="12000" step="1" value="1500"/><output>1500</output></div>
+      <div class="row"><label>Resonance (Q)</label><input id="q" type="range" min="0.1" max="24" step="0.1" value="1.0"/><output>1.0</output></div>
+
+      <h2>🌊 LFO (فايب/واوب)</h2>
+      <div class="row"><label>Target</label>
+        <select id="lfoTarget"><option value="freq">Frequency</option><option value="cutoff" selected>Cutoff</option><option value="am">Volume</option></select>
+      </div>
+      <div class="row"><label>Rate (Hz)</label><input id="lfoRate" type="range" min="0.1" max="20" step="0.1" value="4"/><output>4.0</output></div>
+      <div class="row"><label>Depth</label><input id="lfoDepth" type="range" min="0" max="1" step="0.001" value="0.5"/><output>0.500</output></div>
+
+      <h2>⏱️ Delay</h2>
+      <div class="row"><label>Time (s)</label><input id="delayTime" type="range" min="0" max="1" step="0.001" value="0.18"/><output>0.180</output></div>
+      <div class="row"><label>Feedback</label><input id="feedback" type="range" min="0" max="0.95" step="0.01" value="0.35"/><output>0.35</output></div>
+      <div class="row"><label>Wet</label><input id="wet" type="range" min="0" max="1" step="0.01" value="0.25"/><output>0.25</output></div>
+    </div>
+
+    <div class="card">
+      <h2>🎯 لوحة التحكم بالماوس/التاتش</h2>
+      <canvas id="pad"></canvas>
+      <div class="hint">
+        X = تردد (لوغاريتمي من 60Hz إلى 4kHz) — Y = Cutoff<br>
+        عجلة الماوس = Detune • الأرقام 1..5 = Presets • Space = ميوت لحظي
+      </div>
+      <h2>📈 فيجوالايزر</h2>
+      <canvas id="scope"></canvas>
+    </div>
+  </div>
+
+  <div class="footer">© DIY Web Audio — استمتع وجرّب!</div>
+
+<script>
+(() => {
+  const els = id => document.getElementById(id);
+  const num = el => parseFloat(el.value);
+
+  let ctx, masterGain, analyser, osc1, osc2, mixGain1, mixGain2, filter, lfo, lfoGain, delay, fb, wet, dry;
+  let isDown = false, baseFreq = 220, currentNoteGain, lastGateTime = 0;
+  let lfoTarget = 'cutoff';
+
+  const startBtn = els('startBtn');
+  const stopAll = els('stopAll');
+  const canvas = els('pad');
+  const scope = els('scope');
+  const presetSel = els('preset');
+
+  // Ranges w/ outputs
+  document.querySelectorAll('input[type=range]').forEach(r => {
+    const out = r.nextElementSibling;
+    const update = () => out.textContent = r.value;
+    r.addEventListener('input', update); update();
+  });
+
+  function init() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Master / dry-wet
+    masterGain = ctx.createGain(); masterGain.gain.value = num(els('master'));
+    dry = ctx.createGain(); dry.gain.value = 1;
+    wet = ctx.createGain(); wet.gain.value = num(els('wet'));
+
+    // Filter
+    filter = ctx.createBiquadFilter();
+    filter.type = els('fType').value;
+    filter.frequency.value = num(els('cut'));
+    filter.Q.value = num(els('q'));
+
+    // Delay line
+    delay = ctx.createDelay(1.0); delay.delayTime.value = num(els('delayTime'));
+    fb = ctx.createGain(); fb.gain.value = num(els('feedback'));
+    delay.connect(fb).connect(delay);
+
+    // Analyser
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+
+    // Oscillators + mixer
+    mixGain1 = ctx.createGain(); mixGain2 = ctx.createGain();
+    setMix(num(els('mix')));
+
+    // LFO
+    lfo = ctx.createOscillator(); lfo.type = 'sine';
+    lfoGain = ctx.createGain(); lfoGain.gain.value = num(els('lfoDepth')) * 1000; // scaled
+    lfo.frequency.value = num(els('lfoRate'));
+    lfo.connect(lfoGain);
+    lfo.start();
+
+    // Routing:
+    // [Oscs] -> Filter -> (dry + delay->wet) -> Master -> Dest (+ analyser)
+    filter.connect(dry).connect(masterGain);
+    filter.connect(delay).connect(wet).connect(masterGain);
+    masterGain.connect(analyser).connect(ctx.destination);
+  }
+
+  function setMix(v){
+    if (!mixGain1 || !mixGain2) return;
+    mixGain1.gain.value = 1 - v;
+    mixGain2.gain.value = v;
+  }
+
+  function startOscillators() {
+    stopOscillators();
+    osc1 = ctx.createOscillator();
+    osc2 = ctx.createOscillator();
+    osc1.type = els('wave1').value.replace('sinusoid','sine');
+    osc2.type = els('wave2').value.replace('sinusoid','sine');
+    osc1.detune.value = num(els('detune')) - 5; // slight stereo-ish spread
+    osc2.detune.value = num(els('detune')) + 5;
+    osc1.connect(mixGain1).connect(filter);
+    osc2.connect(mixGain2).connect(filter);
+
+    // LFO patching
+    lfoGain.disconnect();
+    lfoTarget = els('lfoTarget').value;
+    if (lfoTarget === 'freq') {
+      lfoGain.gain.value = num(els('lfoDepth')) * 1200; // cents
+      lfoGain.connect(osc1.detune);
+      lfoGain.connect(osc2.detune);
+    } else if (lfoTarget === 'cutoff') {
+      lfoGain.gain.value = num(els('lfoDepth')) * 4000; // Hz
+      lfoGain.connect(filter.frequency);
+    } else { // AM
+      lfoGain.gain.value = num(els('lfoDepth'));
+      const amGain = ctx.createGain();
+      amGain.gain.value = 1;
+      lfoGain.connect(amGain.gain);
+      // AM after filter
+      filter.disconnect();
+      const postFilterGain = ctx.createGain();
+      filter.connect(postFilterGain);
+      postFilterGain.gain.value = 1;
+      lfoGain.connect(postFilterGain.gain);
+      // Reconnect to master paths
+      postFilterGain.connect(dry).connect(masterGain);
+      postFilterGain.connect(delay).connect(wet).connect(masterGain);
+      // Also keep analyser tap
+      masterGain.disconnect(); masterGain.connect(analyser).connect(ctx.destination);
+    }
+
+    osc1.start(); osc2.start();
+  }
+
+  function stopOscillators() {
+    [osc1, osc2].forEach(o => { try { if (o) o.stop(); } catch(e){} });
+    osc1 = osc2 = null;
+  }
+
+  function gateOn(freq){
+    if (!ctx) return;
+    startOscillators();
+    const now = ctx.currentTime;
+    baseFreq = freq || baseFreq;
+    setFrequency(baseFreq);
+
+    // ADSR on a small VCA before filter input
+    if (currentNoteGain) { try{ currentNoteGain.disconnect(); }catch(e){} }
+    currentNoteGain = ctx.createGain();
+    currentNoteGain.gain.cancelScheduledValues(now);
+    const A = num(els('a')), D = num(els('d')), S = num(els('s'));
+    currentNoteGain.gain.setValueAtTime(0, now);
+    currentNoteGain.gain.linearRampToValueAtTime(1, now + A);
+    currentNoteGain.gain.linearRampToValueAtTime(S, now + A + D);
+    // insert VCA: osc mix -> VCA -> filter
+    mixGain1.disconnect(); mixGain2.disconnect();
+    mixGain1.connect(currentNoteGain); mixGain2.connect(currentNoteGain);
+    currentNoteGain.connect(filter);
+    lastGateTime = now;
+  }
+
+  function gateOff(){
+    if (!ctx || !currentNoteGain) return;
+    const now = ctx.currentTime;
+    const R = num(els('r'));
+    currentNoteGain.gain.cancelScheduledValues(now);
+    currentNoteGain.gain.setValueAtTime(currentNoteGain.gain.value, now);
+    currentNoteGain.gain.linearRampToValueAtTime(0, now + R);
+    setTimeout(() => { try{ currentNoteGain.disconnect(); }catch(e){}; stopOscillators(); }, (R*1000)+20);
+  }
+
+  function setFrequency(f){
+    if (!osc1 || !osc2) return;
+    osc1.frequency.setTargetAtTime(f, ctx.currentTime, 0.005);
+    osc2.frequency.setTargetAtTime(f, ctx.currentTime, 0.005);
+  }
+
+  // UI bindings
+  startBtn.addEventListener('click', () => {
+    init();
+    ctx.resume();
+  });
+
+  stopAll.addEventListener('click', () => {
+    gateOff();
+    if (ctx) ctx.suspend();
+  });
+
+  // Controls
+  els('master').addEventListener('input', e => masterGain && (masterGain.gain.value = num(e.target)));
+  els('mix').addEventListener('input', e => setMix(num(e.target)));
+  els('detune').addEventListener('input', e => {
+    if (osc1 && osc2){ osc1.detune.value = num(e.target)-5; osc2.detune.value = num(e.target)+5; }
+  });
+
+  ['wave1','wave2','lfoTarget'].forEach(id=>{
+    els(id).addEventListener('change', () => { if (ctx) startOscillators(); });
+  });
+
+  // Filter controls
+  els('fType').addEventListener('change', e => filter && (filter.type = e.target.value));
+  els('cut').addEventListener('input', e => filter && (filter.frequency.setTargetAtTime(num(e.target), ctx.currentTime, 0.01)));
+  els('q').addEventListener('input', e => filter && (filter.Q.value = num(e.target)));
+
+  // LFO & Delay
+  els('lfoRate').addEventListener('input', e => lfo && (lfo.frequency.value = num(e.target)));
+  els('lfoDepth').addEventListener('input', e => lfoGain && (lfoGain.gain.value = lfoTarget==='freq'? num(e.target)*1200 : lfoTarget==='cutoff'? num(e.target)*4000 : num(e.target)));
+  els('delayTime').addEventListener('input', e => delay && (delay.delayTime.setTargetAtTime(num(e.target), ctx.currentTime, 0.02)));
+  els('feedback').addEventListener('input', e => fb && (fb.gain.value = num(e.target)));
+  els('wet').addEventListener('input', e => wet && (wet.gain.value = num(e.target)));
+
+  // Mouse/touch pad mapping: X -> pitch (log), Y -> cutoff
+  function posToFreq(x, w){
+    const min=60, max=4000;
+    const t = Math.max(0, Math.min(1, x / Math.max(1,w)));
+    return min * Math.pow(max/min, t);
+  }
+  function posToCutoff(y, h){
+    const min=80, max=12000;
+    const t = 1 - Math.max(0, Math.min(1, y / Math.max(1,h)));
+    return min * Math.pow(max/min, t);
+  }
+
+  function updatePad(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = (e.touches? e.touches[0].clientY : e.clientY) - rect.top;
+    const f = posToFreq(x, rect.width);
+    const cut = posToCutoff(y, rect.height);
+    if (ctx && ctx.state === 'suspended') ctx.resume();
+    baseFreq = f;
+    if (filter) filter.frequency.setTargetAtTime(cut, ctx.currentTime, 0.01);
+    if (isDown) setFrequency(f);
+    drawPad(x,y);
+  }
+
+  function wheelDetune(e){
+    const d = els('detune');
+    let v = parseFloat(d.value) + (e.deltaY < 0 ? 10 : -10);
+    v = Math.max(parseFloat(d.min), Math.min(parseFloat(d.max), v));
+    d.value = v; d.dispatchEvent(new Event('input'));
+  }
+
+  canvas.addEventListener('mousedown', e => { isDown = true; updatePad(e); gateOn(baseFreq); });
+  canvas.addEventListener('mousemove', e => updatePad(e));
+  canvas.addEventListener('mouseup',   e => { isDown = false; gateOff(); });
+  canvas.addEventListener('mouseleave',e => { isDown = false; gateOff(); });
+  canvas.addEventListener('wheel', e => { e.preventDefault(); wheelDetune(e); }, {passive:false});
+
+  canvas.addEventListener('touchstart', e => { isDown = true; updatePad(e); gateOn(baseFreq); }, {passive:true});
+  canvas.addEventListener('touchmove',  e => updatePad(e), {passive:true});
+  canvas.addEventListener('touchend',   e => { isDown = false; gateOff(); }, {passive:true});
+
+  // Presets
+  function loadPreset(name){
+    const set = (id,val) => { const el=els(id); el.value=val; el.dispatchEvent(new Event('input')); };
+    if (name==='pluck'){
+      els('wave1').value='triangle'; els('wave2').value='square';
+      set('mix',0.35); set('a',0.005); set('d',0.12); set('s',0.35); set('r',0.08);
+      els('fType').value='lowpass'; set('cut',1800); set('q',6);
+      els('lfoTarget').value='cutoff'; set('lfoRate',6); set('lfoDepth',0.35);
+      set('delayTime',0.22); set('feedback',0.42); set('wet',0.28);
+    } else if (name==='bass'){
+      els('wave1').value='square'; els('wave2').value='square';
+      set('mix',0.5); set('a',0.003); set('d',0.1); set('s',0.6); set('r',0.12);
+      els('fType').value='lowpass'; set('cut',500); set('q',8);
+      els('lfoTarget').value='cutoff'; set('lfoRate',2); set('lfoDepth',0.2);
+      set('delayTime',0.1); set('feedback',0.2); set('wet',0.1);
+    } else if (name==='pad'){
+      els('wave1').value='triangle'; els('wave2').value='sawtooth';
+      set('mix',0.6); set('a',0.8); set('d',0.8); set('s',0.8); set('r',1.5);
+      els('fType').value='lowpass'; set('cut',2000); set('q',0.9);
+      els('lfoTarget').value='am'; set('lfoRate',0.5); set('lfoDepth',0.6);
+      set('delayTime',0.35); set('feedback',0.5); set('wet',0.35);
+    } else if (name==='lead'){
+      els('wave1').value='sawtooth'; els('wave2').value='square';
+      set('mix',0.55); set('a',0.01); set('d',0.2); set('s',0.7); set('r',0.25);
+      els('fType').value='bandpass'; set('cut',1600); set('q',10);
+      els('lfoTarget').value='freq'; set('lfoRate',7); set('lfoDepth',0.25);
+      set('delayTime',0.18); set('feedback',0.35); set('wet',0.3);
+    } else { // init
+      els('wave1').value='square'; els('wave2').value='sawtooth';
+      set('mix',0.5); set('a',0.01); set('d',0.15); set('s',0.6); set('r',0.2);
+      els('fType').value='lowpass'; set('cut',1500); set('q',1.0);
+      els('lfoTarget').value='cutoff'; set('lfoRate',4); set('lfoDepth',0.5);
+      set('delayTime',0.18); set('feedback',0.35); set('wet',0.25);
+      set('master',0.3); set('detune',0);
+    }
+    if (ctx) startOscillators();
+  }
+  presetSel.addEventListener('change', e => loadPreset(e.target.value));
+  window.addEventListener('keydown', e => {
+    if (e.code==='Space'){ e.preventDefault(); if (isDown){ isDown=false; gateOff(); } else { isDown=true; gateOn(baseFreq);} }
+    if (e.key==='1') { presetSel.value='init'; loadPreset('init'); }
+    if (e.key==='2') { presetSel.value='pluck'; loadPreset('pluck'); }
+    if (e.key==='3') { presetSel.value='bass'; loadPreset('bass'); }
+    if (e.key==='4') { presetSel.value='pad'; loadPreset('pad'); }
+    if (e.key==='5') { presetSel.value='lead'; loadPreset('lead'); }
+  });
+
+  // Visuals
+  function drawPad(x, y){
+    const ctx2 = canvas.getContext('2d');
+    const w = canvas.width = canvas.clientWidth;
+    const h = canvas.height = canvas.clientHeight;
+    ctx2.clearRect(0,0,w,h);
+    const grad = ctx2.createLinearGradient(0,0,w,h);
+    grad.addColorStop(0,'#0b1f38'); grad.addColorStop(1,'#0a0e16');
+    ctx2.fillStyle = grad; ctx2.fillRect(0,0,w,h);
+    if (typeof x==='number' && typeof y==='number'){
+      ctx2.strokeStyle = '#00d0ff';
+      ctx2.lineWidth = 1;
+      ctx2.beginPath(); ctx2.moveTo(x,0); ctx2.lineTo(x,h); ctx2.moveTo(0,y); ctx2.lineTo(w,y); ctx2.stroke();
+      ctx2.fillStyle = '#00d0ff'; ctx2.beginPath(); ctx2.arc(x,y,6,0,Math.PI*2); ctx2.fill();
+    }
+    // axes labels
+    ctx2.fillStyle = '#9aa4ad'; ctx2.font = '12px system-ui';
+    ctx2.fillText('Pitch →', 10, 18);
+    ctx2.fillText('Cutoff ↓', 10, 34);
+  }
+
+  function renderScope(){
+    const w = scope.width = scope.clientWidth;
+    const h = scope.height = scope.clientHeight;
+    const g = scope.getContext('2d');
+    g.fillStyle = '#060a12'; g.fillRect(0,0,w,h);
+    if (!analyser) return requestAnimationFrame(renderScope);
+    const data = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(data);
+    g.strokeStyle = '#8fe1ff'; g.lineWidth = 1.2; g.beginPath();
+    for (let i=0;i<data.length;i++){
+      const x = i/data.length * w;
+      const y = (data[i]/255) * h;
+      if (i===0) g.moveTo(x,y); else g.lineTo(x,y);
+    }
+    g.stroke();
+    requestAnimationFrame(renderScope);
+  }
+  drawPad(); renderScope();
+
+  // Reflect UI -> nodes in real-time
+  ['master','mix','detune','cut','q','lfoRate','lfoDepth','delayTime','feedback','wet'].forEach(id=>{
+    els(id).addEventListener('input', ()=>{}); // already handled above; keeps outputs in sync
+  });
+
+  // Keep filter & delay synced when changing type after init
+  els('fType').addEventListener('change', ()=> filter && (filter.type = els('fType').value));
+
+  // Boot with INIT preset defaults applied to UI
+  loadPreset('init');
+
+})();
+</script>
+</body>
+</html>
